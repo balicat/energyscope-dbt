@@ -41,4 +41,5 @@ jobs:
         run: python scripts/weekly_balance.py ci.duckdb 4
 
       - name: dbt docs
-        run: dbt docs generate --target ci --vars '{datasets: [PET, NG, STEO, CFTC, WEATHER]}'
+        run: |
+          dbt docs generate --target ci --vars '{datasets: [PET, NG, STEO, CFTC, WEATHER]}'
