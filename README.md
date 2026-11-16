@@ -1,5 +1,7 @@
 # energyscope-dbt
 
+[![dbt CI](https://github.com/balicat/energyscope-dbt/actions/workflows/dbt-ci.yml/badge.svg)](https://github.com/balicat/energyscope-dbt/actions/workflows/dbt-ci.yml)
+
 A dbt project over the [EnergyScope](https://energyscope.io) market-data lake: 17 datasets,
 **18.9M observations across 204,544 series**, read in place from Parquet by DuckDB
 (dbt-duckdb). Sources include EIA petroleum and natural gas, the EIA Short-Term Energy
