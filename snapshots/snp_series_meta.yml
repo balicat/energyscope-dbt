@@ -1,0 +1,12 @@
+snapshots:
+  - name: snp_series_meta
+    description: >
+      Type 2 history of series metadata. Publishers rename series, change units and retire
+      them; this keeps every version with its validity window, and records a deletion as a
+      new row instead of losing it.
+    relation: ref('stg_series_meta')
+    config:
+      unique_key: [dataset, series_id]
+      strategy: check
+      check_cols: [series_name, units, frequency_code, description, source_org]
+      hard_deletes: new_record

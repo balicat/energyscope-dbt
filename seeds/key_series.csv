@@ -1,0 +1,8 @@
+series_id,metric,description
+PET.WCESTUS1.W,crude_stocks_ex_spr,US commercial crude oil stocks excluding SPR (thousand barrels)
+PET.WCSSTUS1.W,crude_stocks_spr,US Strategic Petroleum Reserve stocks (thousand barrels)
+PET.W_EPC0_SAX_YCUOK_MBBL.W,cushing_stocks,Cushing OK crude oil stocks (thousand barrels)
+PET.WCRFPUS2.W,crude_production,US field production of crude oil (thousand barrels per day)
+PET.WCRIMUS2.W,crude_imports,US crude oil imports (thousand barrels per day)
+PET.WCREXUS2.W,crude_exports,US crude oil exports (thousand barrels per day)
+PET.WCRRIUS2.W,refinery_crude_inputs,US refiner net input of crude oil (thousand barrels per day)

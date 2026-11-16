@@ -1,0 +1,44 @@
+name: dbt CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ENERGYSCOPE_LAKE: fixtures/lake
+      DBT_PROFILES_DIR: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: dbt deps
+        run: dbt deps
+
+      - name: dbt build (unit tests, seeds, models, snapshot, data tests) on the fixture lake
+        run: >
+          dbt build --target ci
+          --vars '{datasets: [PET, NG, STEO, CFTC, WEATHER], as_of_date: "2026-11-16"}'
+
+      - name: Incremental run is idempotent
+        run: |
+          dbt run --target ci --select fct_observations \
+            --vars '{datasets: [PET, NG, STEO, CFTC, WEATHER], as_of_date: "2026-11-16"}'
+          dbt test --target ci --select fct_observations \
+            --vars '{datasets: [PET, NG, STEO, CFTC, WEATHER], as_of_date: "2026-11-16"}'
+
+      - name: Exposure runs against the built mart
+        run: python scripts/weekly_balance.py ci.duckdb 4
+
+      - name: dbt docs
+        run: dbt docs generate --target ci --vars '{datasets: [PET, NG, STEO, CFTC, WEATHER]}'

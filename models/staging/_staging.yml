@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: stg_observations
+    description: >
+      Every observation in the modelled datasets, with the period parsed from the raw string.
+      Null values are dropped here; a missing value upstream means "not published", not zero.
+    columns:
+      - name: dataset
+        data_tests: [not_null]
+      - name: series_id
+        data_tests: [not_null]
+      - name: period_raw
+        data_tests: [not_null]
+      - name: period_date
+        description: First day of the period. NULL means the raw format was not recognised.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+      - name: period_norm_upstream
+        description: >
+          The normalised period written by the Python cook step. Kept only so tests can
+          check it against period_date; nothing downstream reads it.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [dataset, series_id, period_date]
+
+  - name: stg_series_meta
+    description: Series metadata per dataset.
+    columns:
+      - name: series_id
+        data_tests: [not_null]
+      - name: frequency_code
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('frequency_cadence')
+                field: frequency_code
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [dataset, series_id]

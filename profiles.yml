@@ -1,0 +1,15 @@
+energyscope:
+  target: lake
+  outputs:
+    # The real lake (139M rows across 31 datasets; this project models the 17 market datasets).
+    lake:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', 'energyscope.duckdb') }}"
+      threads: 8
+      settings:
+        memory_limit: "16GB"
+    # Small public-domain fixture lake committed under fixtures/ (EIA, CFTC, NOAA). Used by CI.
+    ci:
+      type: duckdb
+      path: "ci.duckdb"
+      threads: 4

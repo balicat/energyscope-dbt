@@ -1,0 +1,47 @@
+version: 2
+
+seeds:
+  - name: frequency_cadence
+    description: >
+      One row per frequency code: the nominal spacing between observations, how old the latest
+      observation may be before a series counts as late, and how far back an incremental run
+      re-reads to pick up revisions. stale_after_days includes the publisher's normal lag:
+      EIA monthly data appears about two months after the month, annual data well into the
+      next year, so "late" means later than the publication rhythm, not older than the frequency.
+    columns:
+      - name: frequency_code
+        data_tests: [unique, not_null]
+      - name: nominal_days
+        data_tests: [not_null]
+      - name: stale_after_days
+        data_tests: [not_null]
+      - name: revision_lookback_days
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= nominal_days"
+
+  - name: dataset_publication
+    description: >
+      Per-dataset overrides where the publication rhythm differs from the data frequency
+      (daily data published weekly, weekly positions published days after the as-of date).
+    columns:
+      - name: dataset
+        data_tests: [unique, not_null]
+      - name: stale_after_days
+        data_tests: [not_null]
+
+  - name: key_series
+    description: The weekly US crude balance series that feed mart_us_crude_weekly.
+    columns:
+      - name: series_id
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_series')
+                field: series_id
+      - name: metric
+        data_tests: [unique, not_null]

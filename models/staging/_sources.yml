@@ -1,0 +1,101 @@
+version: 2
+
+# One source table per dataset. dbt-duckdb reads the Parquet files in place through
+# meta.external_location; {name} is the table name, i.e. the dataset folder.
+# Freshness is judged on the newest period in the data, which is what a desk cares about,
+# not on file timestamps. Forecast datasets (STEO, OPEC, IEA) have no freshness rule:
+# their newest period is in the future by design.
+
+sources:
+  - name: lake_observations
+    description: Cooked observations, one Parquet file per dataset per year.
+    meta:
+      external_location: "read_parquet('{{ env_var('ENERGYSCOPE_LAKE', 'fixtures/lake') }}/{name}/year=*/data.parquet', union_by_name = true)"
+    config:
+      loaded_at_field: "try_cast(period_norm as timestamp)"
+    tables:
+      - name: PET
+        description: EIA petroleum (weekly, monthly, annual; spot prices daily).
+        config:
+          freshness: {warn_after: {count: 10, period: day}, error_after: {count: 21, period: day}}
+      - name: NG
+        description: EIA natural gas.
+        config:
+          freshness: {warn_after: {count: 10, period: day}, error_after: {count: 21, period: day}}
+      - name: STEO
+        description: EIA Short-Term Energy Outlook (history plus forecast to the end of next year).
+      - name: JODI
+        description: JODI Oil World Database, monthly.
+        config:
+          freshness: {warn_after: {count: 120, period: day}, error_after: {count: 180, period: day}}
+      - name: ICE
+        description: Brent futures curve (CME/NYMEX BZ, cash-settled against ICE Brent), daily.
+        config:
+          freshness: {warn_after: {count: 5, period: day}, error_after: {count: 10, period: day}}
+      - name: ICE_COT
+        description: ICE Futures Europe Commitments of Traders, weekly.
+        config:
+          freshness: {warn_after: {count: 12, period: day}, error_after: {count: 21, period: day}}
+      - name: CFTC
+        description: CFTC disaggregated Commitments of Traders, weekly.
+        config:
+          freshness: {warn_after: {count: 12, period: day}, error_after: {count: 21, period: day}}
+      - name: WEATHER
+        description: NOAA CPC weekly degree days.
+        config:
+          freshness: {warn_after: {count: 12, period: day}, error_after: {count: 21, period: day}}
+      - name: PORTWATCH
+        description: IMF PortWatch chokepoint transits and port calls, published weekly.
+        config:
+          freshness: {warn_after: {count: 12, period: day}, error_after: {count: 21, period: day}}
+      - name: AGSI
+        description: GIE AGSI+ EU gas storage, daily.
+        config:
+          freshness: {warn_after: {count: 4, period: day}, error_after: {count: 10, period: day}}
+      - name: EU_OIL_BULLETIN
+        description: European Commission Weekly Oil Bulletin.
+        config:
+          freshness: {warn_after: {count: 12, period: day}, error_after: {count: 21, period: day}}
+      - name: FRED
+        description: Selected FRED series (prices, rates, FX).
+        config:
+          freshness: {warn_after: {count: 7, period: day}, error_after: {count: 14, period: day}}
+      - name: BAKER_HUGHES
+        description: Baker Hughes rig counts.
+        config:
+          freshness: {warn_after: {count: 10, period: day}, error_after: {count: 21, period: day}}
+      - name: OPEC
+        description: OPEC Monthly Oil Market Report tables (history plus forecast).
+      - name: IEA
+        description: IEA Oil Market Report tables (history plus forecast).
+      - name: SHIP
+        description: Freight indices, daily.
+        config:
+          freshness: {warn_after: {count: 7, period: day}, error_after: {count: 14, period: day}}
+      - name: MACRO
+        description: Market macro series (equity, volatility, FX), daily.
+        config:
+          freshness: {warn_after: {count: 7, period: day}, error_after: {count: 14, period: day}}
+
+  - name: lake_series_meta
+    description: Series metadata, one Parquet file per dataset.
+    meta:
+      external_location: "read_parquet('{{ env_var('ENERGYSCOPE_LAKE', 'fixtures/lake') }}/{name}/series_meta.parquet')"
+    tables:
+      - name: PET
+      - name: NG
+      - name: STEO
+      - name: JODI
+      - name: ICE
+      - name: ICE_COT
+      - name: CFTC
+      - name: WEATHER
+      - name: PORTWATCH
+      - name: AGSI
+      - name: EU_OIL_BULLETIN
+      - name: FRED
+      - name: BAKER_HUGHES
+      - name: OPEC
+      - name: IEA
+      - name: SHIP
+      - name: MACRO

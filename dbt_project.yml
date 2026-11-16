@@ -1,0 +1,46 @@
+name: energyscope
+version: "1.0.0"
+config-version: 2
+profile: energyscope
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+clean-targets: ["target", "dbt_packages", "logs"]
+
+vars:
+  # Datasets modelled. The CI target overrides this with the fixture subset.
+  datasets: ["PET", "NG", "STEO", "JODI", "ICE", "ICE_COT", "CFTC", "WEATHER", "PORTWATCH",
+             "AGSI", "EU_OIL_BULLETIN", "FRED", "BAKER_HUGHES", "OPEC", "IEA", "SHIP", "MACRO"]
+  # Datasets that legitimately publish future periods (forecasts).
+  forecast_datasets: ["STEO", "OPEC", "IEA"]
+  # Date the staleness flags are judged against (YYYY-MM-DD). Empty = today. Pin it for reproducible runs.
+  as_of_date: ""
+
+models:
+  energyscope:
+    +group: market_data
+    staging:
+      +materialized: view
+      +access: protected
+    intermediate:
+      +materialized: table
+      +access: protected
+    marts:
+      +materialized: table
+      +access: public
+
+seeds:
+  energyscope:
+    frequency_cadence:
+      +column_types:
+        frequency_code: varchar
+        nominal_days: integer
+        stale_after_days: integer
+        revision_lookback_days: integer
+
+snapshots:
+  energyscope:
+    +target_schema: snapshots

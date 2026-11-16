@@ -1,0 +1,216 @@
+version: 2
+
+models:
+  - name: fct_observations
+    description: >
+      One row per series per period. Incremental with a per-series, per-frequency revision
+      window (see the model header). Contract enforced: consumers can rely on these names,
+      types and non-null columns.
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: series_id
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_series')
+                field: series_id
+      - name: dataset
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: period_date
+        data_type: date
+        constraints: [{type: not_null}]
+        data_tests:
+          - no_future_periods:
+              arguments:
+                exclude_forecast_datasets: true
+      - name: value
+        data_type: double
+        constraints: [{type: not_null}]
+      - name: loaded_at
+        data_type: timestamp
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [series_id, period_date]
+
+  - name: dim_series
+    description: One row per series, with its coverage and a status a person can act on.
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: series_id
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests: [unique, not_null]
+      - name: dataset
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: series_name
+        data_type: varchar
+      - name: units
+        data_type: varchar
+      - name: frequency_code
+        data_type: varchar
+        data_tests:
+          - not_null:
+              config: {severity: warn}
+      - name: frequency_name
+        data_type: varchar
+      - name: source_org
+        data_type: varchar
+      - name: first_period
+        data_type: date
+      - name: last_period
+        data_type: date
+      - name: n_obs
+        data_type: bigint
+      - name: n_gaps
+        data_type: bigint
+      - name: has_metadata
+        data_type: boolean
+        description: False when a series has observations but no metadata row (an orphan).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [true]
+                quote: false
+              config: {severity: warn, store_failures: true}
+      - name: is_forecast_dataset
+        data_type: boolean
+      - name: stale_after_days
+        data_type: integer
+      - name: status
+        data_type: varchar
+        description: >
+          current, late (older than stale_after_days but within a year or four cadences),
+          discontinued (older than that), forecast (dataset publishes future periods),
+          no_data (metadata only).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [current, late, discontinued, forecast, no_data]
+
+  - name: fct_latest
+    description: Latest and previous observation per series, with the change between them.
+    config:
+      contract: {enforced: true}
+    columns:
+      - name: series_id
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests: [unique]
+      - name: dataset
+        data_type: varchar
+      - name: latest_period
+        data_type: date
+        constraints: [{type: not_null}]
+      - name: latest_value
+        data_type: double
+        constraints: [{type: not_null}]
+      - name: previous_period
+        data_type: date
+      - name: previous_value
+        data_type: double
+      - name: change
+        data_type: double
+      - name: pct_change
+        data_type: double
+
+  - name: mart_us_crude_weekly
+    description: US weekly crude balance, one row per week (EIA Weekly Petroleum Status Report series).
+    columns:
+      - name: week_ending
+        data_tests: [unique, not_null]
+      - name: crude_stocks_ex_spr
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+              config:
+                where: "week_ending >= date '2000-01-01'"
+
+unit_tests:
+  - name: parse_period_formats
+    description: Every period format the sources publish lands on the first day of its period; an unknown format becomes NULL.
+    model: stg_observations
+    overrides:
+      vars: {datasets: ["STEO"]}
+    given:
+      # The source is Parquet read in place, so there is no table to take column types from;
+      # the fixture states them.
+      - input: source('lake_observations', 'STEO')
+        format: sql
+        rows: |
+          select * from (values
+            ('STEO.X.D', '20261106', '2026-11-06', 1.0::double),
+            ('STEO.X.M', '202601',   '2026-01-01', 2.0::double),
+            ('STEO.X.Q', '2025Q3',   '2025-Q3-01', 3.0::double),
+            ('STEO.X.A', '2025',     '2025-01-01', 4.0::double),
+            ('STEO.X.Z', '2025-W45', '',           5.0::double),
+            ('STEO.X.N', '2025',     '2025-01-01', null::double)
+          ) as t(series_id, period, period_norm, value)
+    expect:
+      rows:
+        - {series_id: "STEO.X.D", period_date: "2026-11-06"}
+        - {series_id: "STEO.X.M", period_date: "2026-01-01"}
+        - {series_id: "STEO.X.Q", period_date: "2025-07-01"}
+        - {series_id: "STEO.X.A", period_date: "2025-01-01"}
+        - {series_id: "STEO.X.Z", period_date: null}
+
+  - name: latest_and_change
+    description: fct_latest takes the newest row, the one before it, and their difference; a single observation has no change.
+    model: fct_latest
+    given:
+      - input: ref('fct_observations')
+        rows:
+          - {series_id: "A", dataset: "PET", period_date: "2026-10-30", value: 100.0}
+          - {series_id: "A", dataset: "PET", period_date: "2026-11-06", value: 110.0}
+          - {series_id: "A", dataset: "PET", period_date: "2026-10-23", value: 90.0}
+          - {series_id: "B", dataset: "NG",  period_date: "2026-11-06", value: 5.0}
+    expect:
+      rows:
+        - {series_id: "A", latest_period: "2026-11-06", latest_value: 110.0, previous_period: "2026-10-30", previous_value: 100.0, change: 10.0, pct_change: 0.1}
+        - {series_id: "B", latest_period: "2026-11-06", latest_value: 5.0, previous_period: null, previous_value: null, change: null, pct_change: null}
+
+  - name: incremental_rereads_revision_window_only
+    description: >
+      On an incremental run, a weekly series re-reads the 120 days behind its own newest period
+      (so a revised value comes through) and skips older history; a series never seen before
+      loads in full; a forecast series far in the future does not move anyone else's window.
+    model: fct_observations
+    overrides:
+      macros: {is_incremental: true}
+    given:
+      - input: this
+        format: sql
+        rows: |
+          select * from (values
+            ('W1', 'PET',  date '2026-11-06', 400.0::double, null::timestamp),
+            ('F1', 'STEO', date '2027-12-01',   9.0::double, null::timestamp)
+          ) as t(series_id, dataset, period_date, value, loaded_at)
+      - input: ref('stg_series_meta')
+        rows:
+          - {dataset: "PET",  series_id: "W1", frequency_code: "W"}
+          - {dataset: "STEO", series_id: "F1", frequency_code: "M"}
+          - {dataset: "PET",  series_id: "N1", frequency_code: "W"}
+      - input: ref('frequency_cadence')
+        rows:
+          - {frequency_code: "W", revision_lookback_days: 120}
+          - {frequency_code: "M", revision_lookback_days: 400}
+      - input: ref('stg_observations')
+        rows:
+          - {dataset: "PET",  series_id: "W1", period_date: "2026-11-13", value: 401.0}
+          - {dataset: "PET",  series_id: "W1", period_date: "2026-10-02", value: 395.5}
+          - {dataset: "PET",  series_id: "W1", period_date: "2025-01-03", value: 300.0}
+          - {dataset: "PET",  series_id: "N1", period_date: "1990-01-05", value: 1.0}
+          - {dataset: "STEO", series_id: "F1", period_date: "2027-12-01", value: 9.5}
+    expect:
+      rows:
+        - {series_id: "W1", period_date: "2026-11-13", value: 401.0}
+        - {series_id: "W1", period_date: "2026-10-02", value: 395.5}
+        - {series_id: "N1", period_date: "1990-01-05", value: 1.0}
+        - {series_id: "F1", period_date: "2027-12-01", value: 9.5}

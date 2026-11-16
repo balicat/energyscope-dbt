@@ -1,0 +1,4 @@
+dataset,stale_after_days,note
+PORTWATCH,14,"Daily observations, published weekly on Tuesdays; chokepoints run ~2 days and ports ~4 days behind at publication"
+CFTC,11,"Positions as of Tuesday, published the following Friday"
+ICE_COT,11,"Positions as of Tuesday, published the following Monday"

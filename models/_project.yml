@@ -1,0 +1,20 @@
+version: 2
+
+groups:
+  - name: market_data
+    owner:
+      name: David Linton
+
+exposures:
+  - name: weekly_crude_balance_report
+    label: Weekly US crude balance (console report)
+    type: analysis
+    maturity: medium
+    description: >
+      scripts/weekly_balance.py prints the latest weeks of the US crude balance from
+      mart_us_crude_weekly, with the week-over-week change in commercial stocks. It is the
+      smallest real consumer of the marts, and it breaks loudly if a contracted column changes.
+    depends_on:
+      - ref('mart_us_crude_weekly')
+    owner:
+      name: David Linton

@@ -1,0 +1,7 @@
+frequency_code,frequency_name,nominal_days,stale_after_days,revision_lookback_days
+D,daily,1,7,45
+W,weekly,7,14,120
+4,four-week average,7,14,120
+M,monthly,30,150,400
+Q,quarterly,91,280,800
+A,annual,365,900,1100
