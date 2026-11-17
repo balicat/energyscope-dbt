@@ -12,6 +12,18 @@ The lake itself is built by Dagster pipelines and served by an Arrow Flight serv
 is the modelling and testing layer on top of it. Everything below ran against the live lake on
 16 Nov 2026.
 
+## How this was built
+
+In one working session with Claude Code. I set the goal and the bar: a revision-aware incremental
+model, enforced contracts, unit tests, a snapshot, freshness on data time, and CI on public data.
+Claude Code wrote the models, tests and workflow, and nothing was accepted until it ran against the
+live lake and, in CI, on the fixtures. The commits are co-authored by Claude.
+
+Checking the work changed it. An incremental run first reported as passing had in fact failed,
+because dbt could not infer the refs used inside `is_incremental()`. The model now declares them
+with `-- depends_on:`, and a second incremental run must leave the row count unchanged. The first
+lateness rule is the other example (see "Late" below).
+
 ## Layers
 
 ```
