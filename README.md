@@ -84,8 +84,10 @@ no freshness rule.
   `2003-Q1-01`, which is not a date. OPEC and IEA quarterlies were fine. The reconciliation test
   flags it as a warning; this project's own parsing gives 2003-01-01, so the marts are correct.
 - **CFTC and ICE positioning stopped at Tuesday 3 November**, 13 days before the run date, and both
-  sources warned on freshness. Possibly a holiday-week release delay (Veterans Day fell on 11
-  November); not yet confirmed.
+  sources warned on freshness. For CFTC it was a holiday-week delay: the 10 November report
+  (Veterans Day week) came out on Monday 16 November, hours after that day's pipeline run, and the
+  pipeline otherwise ran only on Fridays. It now also runs on Mondays and Tuesdays. ICE had not
+  updated its file by 17 November.
 - **Series status:** 70,195 current, 22,855 late, 102,712 discontinued, 8,782 forecast, and 6,391
   with metadata but no observations (EIA catalogue entries with no data).
 - **Gaps against cadence** in current series: every current EU Weekly Oil Bulletin series has at
